@@ -316,6 +316,9 @@ class Seq2SeqArgs(ModelArgs):
     max_length: int = 20
     max_steps: int = -1
     num_beams: int = 1
+    num_beam_groups: int = 1
+    diversity_penalty: float = 0.0
+    label_smoothing_factor: float = 0
     num_return_sequences: int = 1
     rag_embed_batch_size: int = 16
     repetition_penalty: float = 1.0

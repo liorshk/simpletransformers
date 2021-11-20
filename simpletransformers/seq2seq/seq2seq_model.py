@@ -82,6 +82,7 @@ from simpletransformers.seq2seq.seq2seq_utils import (
     add_faiss_index_to_dataset,
     generate_faiss_index_dataset,
     load_hf_dataset,
+    LabelSmoother
 )
 
 try:
@@ -487,6 +488,11 @@ class Seq2SeqModel:
         model = self.model
         args = self.args
 
+        if self.args.label_smoothing_factor != 0:
+            self.label_smoother = LabelSmoother(epsilon=self.args.label_smoothing_factor)
+        else:
+            self.label_smoother = None
+            
         tb_writer = SummaryWriter(log_dir=args.tensorboard_dir)
         train_sampler = RandomSampler(train_dataset)
         train_dataloader = DataLoader(
@@ -742,15 +748,28 @@ class Seq2SeqModel:
                 # batch = tuple(t.to(device) for t in batch)
 
                 inputs = self._get_inputs_dict(batch)
+
+                if self.label_smoother is not None and "labels" in inputs:
+                    labels = inputs.pop("labels")
+                else:
+                    labels = None
+
                 if args.fp16:
                     with amp.autocast():
                         outputs = model(**inputs)
-                        # model outputs are always tuple in pytorch-transformers (see doc)
-                        loss = outputs[0]
+                        if labels is not None:
+                            loss = self.label_smoother(outputs, labels)
+                        else:
+                            # We don't use .loss here since the model may return tuples instead of ModelOutput.
+                            loss = outputs["loss"] if isinstance(outputs, dict) else outputs[0]
                 else:
                     outputs = model(**inputs)
-                    # model outputs are always tuple in pytorch-transformers (see doc)
-                    loss = outputs[0]
+
+                    if labels is not None:
+                        loss = self.label_smoother(outputs, labels)
+                    else:
+                        # We don't use .loss here since the model may return tuples instead of ModelOutput.
+                        loss = outputs["loss"] if isinstance(outputs, dict) else outputs[0]
 
                 if args.n_gpu > 1:
                     loss = (
@@ -1301,6 +1320,8 @@ class Seq2SeqModel:
                 outputs = self.model.generate(
                     input_ids=input_ids,
                     num_beams=self.args.num_beams,
+                    num_beam_groups=self.args.num_beam_groups,
+                    diversity_penalty=self.args.diversity_penalty,
                     max_length=self.args.max_length,
                     length_penalty=self.args.length_penalty,
                     early_stopping=self.args.early_stopping,
@@ -1320,6 +1341,8 @@ class Seq2SeqModel:
                     decoder_start_token_id=tgt_lang_token,
                     num_beams=self.args.num_beams,
                     max_length=self.args.max_length,
+                    num_beam_groups=self.args.num_beam_groups,
+                    diversity_penalty=self.args.diversity_penalty,
                     length_penalty=self.args.length_penalty,
                     early_stopping=self.args.early_stopping,
                     repetition_penalty=self.args.repetition_penalty,
@@ -1337,6 +1360,8 @@ class Seq2SeqModel:
                     doc_scores=doc_scores,
                     num_beams=self.args.num_beams,
                     max_length=self.args.max_length,
+                    num_beam_groups=self.args.num_beam_groups,
+                    diversity_penalty=self.args.diversity_penalty,
                     length_penalty=self.args.length_penalty,
                     early_stopping=self.args.early_stopping,
                     repetition_penalty=self.args.repetition_penalty,
@@ -1355,6 +1380,8 @@ class Seq2SeqModel:
                     decoder_start_token_id=self.model.config.decoder.pad_token_id,
                     num_beams=self.args.num_beams,
                     max_length=self.args.max_length,
+                    num_beam_groups=self.args.num_beam_groups,
+                    diversity_penalty=self.args.diversity_penalty,
                     length_penalty=self.args.length_penalty,
                     early_stopping=self.args.early_stopping,
                     repetition_penalty=self.args.repetition_penalty,
