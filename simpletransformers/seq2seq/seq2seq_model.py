@@ -1329,6 +1329,7 @@ class Seq2SeqModel:
                     do_sample=self.args.do_sample,
                     top_k=self.args.top_k,
                     top_p=self.args.top_p,
+                    temperature=self.args.temperature,
                     num_return_sequences=self.args.num_return_sequences,
                 )
             elif self.args.model_type in ["mbart"]:
@@ -1349,6 +1350,7 @@ class Seq2SeqModel:
                     do_sample=self.args.do_sample,
                     top_k=self.args.top_k,
                     top_p=self.args.top_p,
+                    temperature=self.args.temperature,
                     num_return_sequences=self.args.num_return_sequences,
                 )
             elif self.args.model_type in ["rag-token", "rag-sequence"]:
@@ -1368,6 +1370,7 @@ class Seq2SeqModel:
                     do_sample=self.args.do_sample,
                     top_k=self.args.top_k,
                     top_p=self.args.top_p,
+                    temperature=self.args.temperature,
                     num_return_sequences=self.args.num_return_sequences,
                 )
                 retrieved_docs = [
@@ -1388,6 +1391,7 @@ class Seq2SeqModel:
                     do_sample=self.args.do_sample,
                     top_k=self.args.top_k,
                     top_p=self.args.top_p,
+                    temperature=self.args.temperature,
                     num_return_sequences=self.args.num_return_sequences,
                 )
 
