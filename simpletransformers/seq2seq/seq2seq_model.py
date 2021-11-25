@@ -122,6 +122,7 @@ class Seq2SeqModel:
         decoder_name=None,
         encoder_decoder_type=None,
         encoder_decoder_name=None,
+        full_encoder_decoder_name = None,
         additional_special_tokens_encoder=None,
         additional_special_tokens_decoder=None,
         index_name=None,
@@ -146,6 +147,7 @@ class Seq2SeqModel:
                                     Must be the same "size" as the encoder model (base/base, large/large, etc.)
             encoder_decoder_type (optional): The type of encoder-decoder model. (E.g. bart)
             encoder_decoder_name (optional): The path to a directory containing the saved encoder and decoder of a Seq2SeqModel. (E.g. "outputs/") OR a valid BART or MarianMT model.
+            full_encoder_decoder_name (optional): The path to a directory containing the saved encoder and decoder of a Seq2SeqModel. (E.g. "outputs/") OR a valid BART or MarianMT model.
             additional_special_tokens_encoder (optional): dict of special tokens to add to encoder tokenizer
             additional_special_tokens_decoder (optional): dict of special tokens to add to decoder tokenizer
             index_name (optional): Name of the index to use: 'hf' for a canonical dataset from the datasets library, 'custom' for a local index, or 'legacy' for the original one
@@ -325,26 +327,31 @@ class Seq2SeqModel:
                 self.decoder_tokenizer = self.encoder_tokenizer
                 self.config = self.model.config
             else:
-                if encoder_decoder_name:
-                    # self.model = EncoderDecoderModel.from_pretrained(encoder_decoder_name)
-                    self.model = EncoderDecoderModel.from_encoder_decoder_pretrained(
-                        os.path.join(encoder_decoder_name, "encoder"),
-                        os.path.join(encoder_decoder_name, "decoder"),
-                    )
-                    self.encoder_tokenizer = tokenizer_class.from_pretrained(
-                        os.path.join(encoder_decoder_name, "encoder")
-                    )
-                    self.decoder_tokenizer = AutoTokenizer.from_pretrained(
-                        os.path.join(encoder_decoder_name, "decoder")
-                    )
+                if full_encoder_decoder_name:
+                    self.model = EncoderDecoderModel.from_pretrained(full_encoder_decoder_name)
+                    self.encoder_tokenizer = AutoTokenizer.from_pretrained(full_encoder_decoder_name)
+                    self.decoder_tokenizer = AutoTokenizer.from_pretrained(full_encoder_decoder_name)
                 else:
-                    self.model = EncoderDecoderModel.from_encoder_decoder_pretrained(
-                        encoder_name, decoder_name, config=config
-                    )
-                    self.encoder_tokenizer = tokenizer_class.from_pretrained(
-                        encoder_name
-                    )
-                    self.decoder_tokenizer = AutoTokenizer.from_pretrained(decoder_name)
+                    if encoder_decoder_name:
+                        # self.model = EncoderDecoderModel.from_pretrained(encoder_decoder_name)
+                        self.model = EncoderDecoderModel.from_encoder_decoder_pretrained(
+                            os.path.join(encoder_decoder_name, "encoder"),
+                            os.path.join(encoder_decoder_name, "decoder"),
+                        )
+                        self.encoder_tokenizer = tokenizer_class.from_pretrained(
+                            os.path.join(encoder_decoder_name, "encoder")
+                        )
+                        self.decoder_tokenizer = AutoTokenizer.from_pretrained(
+                            os.path.join(encoder_decoder_name, "decoder")
+                        )
+                    else:
+                        self.model = EncoderDecoderModel.from_encoder_decoder_pretrained(
+                            encoder_name, decoder_name, config=config
+                        )
+                        self.encoder_tokenizer = tokenizer_class.from_pretrained(
+                            encoder_name
+                        )
+                        self.decoder_tokenizer = AutoTokenizer.from_pretrained(decoder_name)
                 self.encoder_config = self.model.config.encoder
                 self.decoder_config = self.model.config.decoder
 
