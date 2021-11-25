@@ -1049,6 +1049,7 @@ class T5Model:
                 do_sample=self.args.do_sample,
                 top_k=self.args.top_k,
                 top_p=self.args.top_p,
+                temperature=self.args.temperature,
                 num_return_sequences=self.args.num_return_sequences,
             )
             all_outputs.extend(outputs.cpu().numpy())
