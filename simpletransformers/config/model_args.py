@@ -240,6 +240,10 @@ class T5Args(ModelArgs):
     special_tokens_list: list = field(default_factory=list)
     top_k: float = None
     top_p: float = None
+    num_beam_groups: int = 1
+    diversity_penalty: float = 0.0
+    label_smoothing_factor: float = 0
+    temperature: float = 1.0
     use_multiprocessed_decoding: bool = True
 
 
