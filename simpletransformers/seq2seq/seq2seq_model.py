@@ -163,20 +163,6 @@ class Seq2SeqModel:
             **kwargs (optional): For providing proxies, force_download, resume_download, cache_dir and other options specific to the 'from_pretrained' implementation where this will be supplied.
         """  # noqa: ignore flake8"
 
-        if not config:
-            # if not ((encoder_name and decoder_name) or encoder_decoder_name) and not encoder_type:
-            if not ((encoder_name and decoder_name) or encoder_decoder_name):
-                raise ValueError(
-                    "You must specify a Seq2Seq config \t OR \t"
-                    "encoder_type, encoder_name, and decoder_name OR \t \t"
-                    "encoder_type and encoder_decoder_name"
-                )
-            elif not (encoder_type or encoder_decoder_type):
-                raise ValueError(
-                    "You must specify a Seq2Seq config \t OR \t"
-                    "encoder_type, encoder_name, and decoder_name \t OR \t"
-                    "encoder_type and encoder_decoder_name"
-                )
 
         self.args = self._load_model_args(encoder_decoder_name)
 
