@@ -82,7 +82,8 @@ from simpletransformers.seq2seq.seq2seq_utils import (
     add_faiss_index_to_dataset,
     generate_faiss_index_dataset,
     load_hf_dataset,
-    LabelSmoother
+    LabelSmoother,
+    EISLNatCriterion
 )
 
 try:
@@ -485,6 +486,11 @@ class Seq2SeqModel:
             self.label_smoother = LabelSmoother(epsilon=self.args.label_smoothing_factor)
         else:
             self.label_smoother = None
+
+        self.EISLNatCriterion = None
+        if self.args.EISLNatCriterion:
+            self.EISLNatCriterion = EISLNatCriterion(self.args.label_smoothing_factor, self.args.eisl_ngram, self.args.eisl_ce_factor, self.args.eisl_ngram_factor)
+
             
         tb_writer = SummaryWriter(log_dir=args.tensorboard_dir)
         train_sampler = RandomSampler(train_dataset)
@@ -750,19 +756,25 @@ class Seq2SeqModel:
                 if args.fp16:
                     with amp.autocast():
                         outputs = model(**inputs)
+                        if self.EISLNatCriterion:
+                            loss = self.EISLNatCriterion.compute_EISL(outputs, labels)['loss']
+                        else:
+                            if labels is not None:
+                                loss = self.label_smoother(outputs, labels)
+                            else:
+                                # We don't use .loss here since the model may return tuples instead of ModelOutput.
+                                loss = outputs["loss"] if isinstance(outputs, dict) else outputs[0]
+                else:
+                    outputs = model(**inputs)
+
+                    if self.EISLNatCriterion:
+                        loss = self.EISLNatCriterion.compute_EISL(outputs, labels)['loss']
+                    else:
                         if labels is not None:
                             loss = self.label_smoother(outputs, labels)
                         else:
                             # We don't use .loss here since the model may return tuples instead of ModelOutput.
                             loss = outputs["loss"] if isinstance(outputs, dict) else outputs[0]
-                else:
-                    outputs = model(**inputs)
-
-                    if labels is not None:
-                        loss = self.label_smoother(outputs, labels)
-                    else:
-                        # We don't use .loss here since the model may return tuples instead of ModelOutput.
-                        loss = outputs["loss"] if isinstance(outputs, dict) else outputs[0]
 
                 if args.n_gpu > 1:
                     loss = (

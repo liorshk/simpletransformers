@@ -336,6 +336,10 @@ class Seq2SeqArgs(ModelArgs):
     top_k: float = None
     top_p: float = None
     use_multiprocessed_decoding: bool = False
+    eisl_ngram: str = '1,2'
+    eisl_ce_factor: float = 0.5
+    eisl_ngram_factor: float = 0.5
+    EISLNatCriterion: bool = False
 
     def save(self, output_dir):
         os.makedirs(output_dir, exist_ok=True)
