@@ -605,7 +605,7 @@ from torch import Tensor
 
 class EISLNatCriterion:
     def __init__(self, label_smoothing=0.1, ngram='1,2', ce_factor=0.5, ngram_factor=0.5):
-        self.label_smoothing = label_smoothing
+        self.label_smoothing = LabelSmoother(label_smoothing)
         self.ce_factor = ce_factor
         self.ngram_factor = ngram_factor
 
@@ -653,38 +653,38 @@ class EISLNatCriterion:
             depends on the likelihood score as rewards.
         """
 
-        def mean_ds(x: Tensor, dim=None) -> Tensor:
-            return (
-                x.float().mean().type_as(x)
-                if dim is None
-                else x.float().mean(dim).type_as(x)
-            )
+        # def mean_ds(x: Tensor, dim=None) -> Tensor:
+        #     return (
+        #         x.float().mean().type_as(x)
+        #         if dim is None
+        #         else x.float().mean(dim).type_as(x)
+        #     )
 
-        if masks is not None:
-            outputs, targets = outputs[masks], targets[masks]
+        # if masks is not None:
+        #     outputs, targets = outputs[masks], targets[masks]
 
-        if masks is not None and not masks.any():
-            nll_loss = torch.tensor(0)
-            loss = nll_loss
-        else:
-            logits = F.log_softmax(outputs, dim=-1)
-            if targets.dim() == 1:
-                losses = F.nll_loss(logits, targets.to(logits.device), reduction="none")
+        # if masks is not None and not masks.any():
+        #     nll_loss = torch.tensor(0)
+        #     loss = nll_loss
+        # else:
+        #     logits = F.log_softmax(outputs, dim=-1)
+        #     if targets.dim() == 1:
+        #         losses = F.nll_loss(logits, targets.to(logits.device), reduction="none")
 
-            else:  # soft-labels
-                losses = F.kl_div(logits, targets.to(logits.device), reduction="none")
-                losses = losses.sum(-1)
+        #     else:  # soft-labels
+        #         losses = F.kl_div(logits, targets.to(logits.device), reduction="none")
+        #         losses = losses.sum(-1)
 
-            nll_loss = mean_ds(losses)
-            if label_smoothing > 0:
-                loss = (
-                        nll_loss * (1 - label_smoothing) - mean_ds(logits) * label_smoothing
-                )
-            else:
-                loss = nll_loss
-
+        #     nll_loss = mean_ds(losses)
+        #     if label_smoothing > 0:
+        #         loss = (
+        #                 nll_loss * (1 - label_smoothing) - mean_ds(logits) * label_smoothing
+        #         )
+        #     else:
+        #         loss = nll_loss
+        loss = self.label_smoothing(outputs, targets)
         loss = loss * factor
-        return {"name": name, "loss": loss, "nll_loss": nll_loss, "factor": factor}
+        return {"name": name, "loss": loss, "factor": factor}
 
     def _custom_loss(self, loss, name="loss", factor=1.0):
         return {"name": name, "loss": loss, "factor": factor}
@@ -707,7 +707,7 @@ class EISLNatCriterion:
         return ngram_list
 
     def compute_EISL(self, outputs, targets, masks=None, label_smoothing=0.0, name="loss", factor=1.0):
-        outputs = outputs["logits"] if isinstance(outputs, dict) else outputs[0]
+        
         ce_loss = self._compute_loss(
             outputs=outputs,
             targets=targets,
@@ -716,7 +716,7 @@ class EISLNatCriterion:
             name=name,
             factor=factor
         )
-
+        outputs = outputs["logits"] if isinstance(outputs, dict) else outputs[0]
         log_probs = F.log_softmax(outputs, dim=-1)
 
         ngram_list = self.config_ngram_list(output_length=outputs.size(1))
