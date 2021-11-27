@@ -727,7 +727,6 @@ class EISLNatCriterion:
         return {"name": 'EISL-loss', "loss": eisl_loss,
                 "ngram_loss": ngram_loss,
                 "ce_loss": ce_loss['loss'],
-                "nll_loss": ce_loss['nll_loss'],
                 "factor": 1.0}
 
     def batch_log_EISL_cnn(self, decoder_outputs, target_idx, ngram_list, pad=1,
