@@ -767,12 +767,12 @@ class EISLNatCriterion:
         # [batch, 1, output_len, target_len]
         cost_nll = cost_nll.unsqueeze(1)
 
-        sum_gram = torch.tensor([0.], dtype=cost_nll.dtype, device=cost_nll.device)
+        sum_gram = torch.empty((1),device="cuda")
 
         for cnt, ngram in enumerate(ngram_list):
             # out: [batch, 1, output_len, target_len]
             # eye_filter: [1, 1, ngram, ngram]
-            eye_filter = torch.eye(ngram).view([1, 1, ngram, ngram]).cuda()
+            eye_filter = torch.eye(ngram,device="cuda").view([1, 1, ngram, ngram])
 
             assert ngram <= decoder_outputs.size()[1]
             # term: [batch, 1, output_len - ngram + 1, target_len - ngram + 1]
