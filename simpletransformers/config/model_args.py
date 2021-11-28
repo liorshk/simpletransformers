@@ -342,6 +342,9 @@ class Seq2SeqArgs(ModelArgs):
     EISLNatCriterion: bool = False
     loss_dropper: bool = False
     loss_dropper_dropc: float = 0.3
+    unlikelihood_loss: bool = False
+    unlikelihood_loss_neg_token: str = "0"
+    unlikelihood_loss_pos_token: str = "1"
 
     def save(self, output_dir):
         os.makedirs(output_dir, exist_ok=True)
