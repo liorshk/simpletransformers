@@ -84,7 +84,8 @@ from simpletransformers.seq2seq.seq2seq_utils import (
     load_hf_dataset,
     LabelSmoother,
     EISLNatCriterion,
-    LossDropper
+    LossDropper,
+    UnlikelihoodLoss
 )
 
 try:
@@ -134,7 +135,7 @@ class Seq2SeqModel:
         rag_question_encoder_model_name=None,
         config=None,
         args=None,
-        use_cuda=True,
+        use_cuda=False,
         cuda_device=-1,
         **kwargs,
     ):
@@ -496,6 +497,12 @@ class Seq2SeqModel:
         if self.args.loss_dropper:
             self.loss_dropper = LossDropper(dropc=self.args.loss_dropper_dropc)
         
+        self.unlikelihood_loss = None
+        if self.args.unlikelihood_loss:
+            neg_token_id = self.decoder_tokenizer(self.args.unlikelihood_loss_neg_token)['input_ids'][1]
+            pos_token_id = self.decoder_tokenizer(self.args.unlikelihood_loss_pos_token)['input_ids'][1]
+            self.unlikelihood_loss = UnlikelihoodLoss(self.args.unlikelihood_loss_neg_token, self.args.unlikelihood_loss_pos_token)
+        
         tb_writer = SummaryWriter(log_dir=args.tensorboard_dir)
         train_sampler = RandomSampler(train_dataset)
         train_dataloader = DataLoader(
@@ -791,6 +798,9 @@ class Seq2SeqModel:
                     mask = self.loss_dropper(loss)
                     loss *= mask
                     loss = loss.mean()
+
+                if self.unlikelihood_loss:
+                    loss = self.unlikelihood_loss(model, inputs, outputs)
 
                 if args.n_gpu > 1:
                     loss = (
