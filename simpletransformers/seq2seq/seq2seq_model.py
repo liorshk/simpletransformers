@@ -83,7 +83,8 @@ from simpletransformers.seq2seq.seq2seq_utils import (
     generate_faiss_index_dataset,
     load_hf_dataset,
     LabelSmoother,
-    EISLNatCriterion
+    EISLNatCriterion,
+    LossDropper
 )
 
 try:
@@ -491,7 +492,10 @@ class Seq2SeqModel:
         if self.args.EISLNatCriterion:
             self.EISLNatCriterion = EISLNatCriterion(self.args.label_smoothing_factor, self.args.eisl_ngram, self.args.eisl_ce_factor, self.args.eisl_ngram_factor)
 
-            
+        self.loss_dropper = None
+        if self.args.loss_dropper:
+            self.loss_dropper = LossDropper(dropc=self.args.loss_dropper_dropc)
+        
         tb_writer = SummaryWriter(log_dir=args.tensorboard_dir)
         train_sampler = RandomSampler(train_dataset)
         train_dataloader = DataLoader(
@@ -775,6 +779,18 @@ class Seq2SeqModel:
                         else:
                             # We don't use .loss here since the model may return tuples instead of ModelOutput.
                             loss = outputs["loss"] if isinstance(outputs, dict) else outputs[0]
+                
+                if self.args.loss_dropper:
+                    lm_logits = outputs['logits']  # shape bs, seq_len, vocab_size
+                    assert lm_logits.shape[-1] == self.model.config.vocab_size
+                    loss_fct = torch.nn.NLLLoss(reduction='none', ignore_index=self.model.config.decoder.pad_token_id)
+                    # previously loss_fct = torch.nn.CrossEntropyLoss(ignore_index=pad_token_id)
+                    loss = loss_fct(lm_logits.view(-1, lm_logits.shape[-1]), labels.view(-1))
+                    loss = loss.view(-1, self.args.train_batch_size)
+                    loss = loss.mean(dim=0)
+                    mask = self.loss_dropper(loss)
+                    loss *= mask
+                    loss = loss.mean()
 
                 if args.n_gpu > 1:
                     loss = (

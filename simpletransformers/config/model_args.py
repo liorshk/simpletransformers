@@ -340,6 +340,8 @@ class Seq2SeqArgs(ModelArgs):
     eisl_ce_factor: float = 0.5
     eisl_ngram_factor: float = 0.5
     EISLNatCriterion: bool = False
+    loss_dropper: bool = False
+    loss_dropper_dropc: float = 0.3
 
     def save(self, output_dir):
         os.makedirs(output_dir, exist_ok=True)
