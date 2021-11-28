@@ -728,7 +728,7 @@ class EISLNatCriterion:
                 "ce_loss": ce_loss['loss'],
                 "factor": 1.0}
 
-    def batch_log_EISL_cnn(self, decoder_outputs, target_idx, ngram_list, pad=1,
+    def batch_log_EISL_cnn(self, decoder_outputs, target_idx, ngram_list, pad=-100,
                               weight_list=None):
         """
         decoder_outputs: [batch_size, output_len, vocab_size]
@@ -758,6 +758,8 @@ class EISLNatCriterion:
 
         # [batch_size, output_len, target_len]
         index = target_idx.unsqueeze(1).expand(-1, output_len, tgt_len)
+        ignore = index.eq(pad)
+        index[ignore] =0
 
         # [batch, output_len, target_len]
         cost_nll = decoder_outputs.gather(dim=2, index=index)
