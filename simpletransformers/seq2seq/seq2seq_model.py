@@ -135,7 +135,7 @@ class Seq2SeqModel:
         rag_question_encoder_model_name=None,
         config=None,
         args=None,
-        use_cuda=False,
+        use_cuda=True,
         cuda_device=-1,
         **kwargs,
     ):
