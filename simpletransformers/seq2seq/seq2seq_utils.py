@@ -857,7 +857,6 @@ class UnlikelihoodLoss:
         labels[:,-1] = -100
         negatives = labels[sentence_labels == self.neg_tokn_id]
         positives = labels[sentence_labels == self.pos_token_id]
-        del sentence_labels
 
         lprobs = torch.nn.functional.log_softmax(logits, dim=-1)
         negatives[negatives == -100] = 0
@@ -868,6 +867,7 @@ class UnlikelihoodLoss:
         neg_loss = custom_loss.sum()
         
         pos_inputs = {k:t[sentence_labels == self.pos_token_id] for k,t in inputs.items()}
+        del sentence_labels
         if positives.shape[0] > 0:
             pos_outputs = model(**pos_inputs)
             pos_loss = torch.clone(pos_outputs["loss"])
