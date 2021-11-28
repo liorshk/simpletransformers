@@ -501,7 +501,7 @@ class Seq2SeqModel:
         if self.args.unlikelihood_loss:
             neg_token_id = self.decoder_tokenizer(self.args.unlikelihood_loss_neg_token)['input_ids'][1]
             pos_token_id = self.decoder_tokenizer(self.args.unlikelihood_loss_pos_token)['input_ids'][1]
-            self.unlikelihood_loss = UnlikelihoodLoss(self.args.unlikelihood_loss_neg_token, self.args.unlikelihood_loss_pos_token)
+            self.unlikelihood_loss = UnlikelihoodLoss(neg_token_id, pos_token_id)
         
         tb_writer = SummaryWriter(log_dir=args.tensorboard_dir)
         train_sampler = RandomSampler(train_dataset)

@@ -848,7 +848,7 @@ class UnlikelihoodLoss:
         self.neg_tokn_id = neg_tokn_id
         self.pos_token_id = pos_token_id
 
-    def __call__(self,model, inputs, model_output):
+    def __call__(self, model, inputs, model_output):
         logits = model_output["logits"] if isinstance(model_output, dict) else model_output[0]
         labels = inputs.get("labels")
         sentence_labels = torch.tensor([label[0] for label in labels]).to(labels.device)

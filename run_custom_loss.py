@@ -172,7 +172,7 @@ df.loc[df.rating <= 2, "target_text"] = "0 " + df["target_text"]
 
 val_data = read_data("validation.csv")
 
-model = Seq2SeqModel(encoder_decoder_type="bart", encoder_decoder_name="facebook/bart-base", args=model_args,)
+model = Seq2SeqModel(encoder_decoder_type="bart", encoder_decoder_name="facebook/bart-base", args=model_args, use_cuda=False)
 model.train_model(df.dropna(subset=["input_text","target_text"]), eval_data=val_data.dropna(),gleu_score_max=gleu_score_max, gleu_score_mean=gleu_score_mean,diversity_score_mean=diversity_score_mean)
 
 
