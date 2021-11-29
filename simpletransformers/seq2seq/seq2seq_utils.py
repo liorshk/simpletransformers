@@ -873,4 +873,4 @@ class UnlikelihoodLoss:
         # else:
         #     pos_loss = 0
         # del sentence_labels, negatives, positives, labels, pos_inputs
-        return model_outpu["loss"]
+        return model_output["loss"]
