@@ -1517,6 +1517,8 @@ class Seq2SeqModel:
         results = {}
         for metric, func in kwargs.items():
             results[metric] = func(labels, preds)
+        if metric == "negative_perplexity":
+            results[metric] = func(self.model, self.encoder_tokenizer)
 
         return results
 
