@@ -869,8 +869,8 @@ class UnlikelihoodLoss:
         if positives.shape[0] > 0:
             pos_outputs = model(**pos_inputs)
             pos_loss = pos_outputs["loss"]
-            del pos_outputs, pos_inputs
+            del pos_outputs
         else:
             pos_loss = 0
-        del sentence_labels, negatives, positives, labels
+        del sentence_labels, negatives, positives, labels, pos_inputs
         return pos_loss + neg_loss
