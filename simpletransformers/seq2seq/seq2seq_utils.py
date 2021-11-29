@@ -866,7 +866,7 @@ class UnlikelihoodLoss:
         neg_loss = custom_loss.sum()
         
         pos_inputs = {k:t[sentence_labels == self.pos_token_id] for k,t in inputs.items()}
-        del sentence_labels
+        del sentence_labels, negatives, labels
         if positives.shape[0] > 0:
             pos_outputs = model(**pos_inputs)
             pos_loss = torch.clone(pos_outputs["loss"])
