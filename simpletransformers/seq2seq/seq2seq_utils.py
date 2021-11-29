@@ -852,10 +852,11 @@ class UnlikelihoodLoss:
         logits = model_output["logits"] if isinstance(model_output, dict) else model_output[0]
         labels = inputs.get("labels")
         sentence_labels = torch.tensor([label[0] for label in labels]).to(labels.device)
-        labels[:,0] = 0
-        labels = torch.roll(labels, -1, dims=1)
-        labels[:,-1] = -100
-        negatives = labels[sentence_labels == self.neg_tokn_id]
+        # labels[:,0] = 0
+        # labels = torch.roll(labels, -1, dims=1)
+        # labels[:,-1] = -100
+        negatives = labels
+        # negatives = labels[sentence_labels == self.neg_tokn_id]
         positives = labels[sentence_labels == self.pos_token_id]
 
         lprobs = torch.nn.functional.log_softmax(logits, dim=-1)
