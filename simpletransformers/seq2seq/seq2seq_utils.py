@@ -862,7 +862,6 @@ class UnlikelihoodLoss:
         negatives[negatives == -100] = 0
         negative_targets = torch.zeros_like(lprobs).scatter_(2, torch.unsqueeze(negatives, 0), 1)
         one_minus_probs = torch.clamp((1.0 - lprobs.exp()), min=1e-5)
-
         custom_loss = -torch.log(one_minus_probs)*negative_targets
         neg_loss = custom_loss.sum()
         
@@ -871,7 +870,7 @@ class UnlikelihoodLoss:
         if positives.shape[0] > 0:
             pos_outputs = model(**pos_inputs)
             pos_loss = torch.clone(pos_outputs["loss"])
-            del pos_outputs
+            del pos_outputs, pos_inputs, positives
         else:
             pos_loss = torch.tensor(0).to(model.device)
         return pos_loss + neg_loss
