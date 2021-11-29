@@ -874,4 +874,4 @@ class UnlikelihoodLoss:
         else:
             pos_loss = 0
         del sentence_labels, negatives, positives, labels, pos_inputs
-        return pos_loss + neg_loss
+        return neg_loss
