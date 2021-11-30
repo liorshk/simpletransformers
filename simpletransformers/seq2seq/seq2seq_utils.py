@@ -856,12 +856,13 @@ class UnlikelihoodLoss:
         # labels = torch.roll(labels, -1, dims=1)
         # labels[:,-1] = -100
         negatives = labels
+        # negatives[torch.isin(labels, inputs.get("input_ids"))] = -100
         # negatives = labels[sentence_labels == self.neg_tokn_id]
         # positives = labels[sentence_labels == self.pos_token_id]
 
         lprobs = torch.nn.functional.log_softmax(logits, dim=-1)
         negatives[negatives == -100] = 0
-        negative_targets = torch.zeros_like(lprobs).scatter_(2, torch.unsqueeze(negatives, 0), 1)
+        negative_targets = torch.zeros_like(lprobs).scatter_(2, torch.unsqueeze(negatives, 2), 1)
         negative_targets[:, :, 0] = 0
         one_minus_probs = torch.clamp((1.0 - lprobs.exp()), min=1e-5)
         custom_loss = -torch.log(one_minus_probs)*negative_targets
