@@ -856,7 +856,7 @@ class UnlikelihoodLoss:
         # labels = torch.roll(labels, -1, dims=1)
         # labels[:,-1] = -100
         negatives = labels
-        # negatives[torch.isin(labels, inputs.get("input_ids"))] = -100
+        negatives[torch.isin(labels, inputs.get("input_ids"))] = -100
         # negatives = labels[sentence_labels == self.neg_tokn_id]
         # positives = labels[sentence_labels == self.pos_token_id]
 
