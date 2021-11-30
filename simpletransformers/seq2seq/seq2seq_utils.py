@@ -851,14 +851,14 @@ class UnlikelihoodLoss:
     def __call__(self, model, inputs, model_output):
         logits = model_output["logits"] if isinstance(model_output, dict) else model_output[0]
         labels = inputs.get("labels")
-        # sentence_labels = torch.tensor([label[0] for label in labels]).to(labels.device)
+        sentence_labels = torch.tensor([label[0] for label in labels]).to(labels.device)
         # labels[:,0] = 0
         # labels = torch.roll(labels, -1, dims=1)
-        # labels[:,-1] = -100
-        negatives = labels
-        negatives[torch.isin(labels, inputs.get("input_ids"))] = -100
-        # negatives = labels[sentence_labels == self.neg_tokn_id]
-        # positives = labels[sentence_labels == self.pos_token_id]
+        labels[:,0] = -100
+        # negatives = labels
+        # negatives[torch.isin(labels, inputs.get("input_ids"))] = -100
+        negatives = labels[sentence_labels == self.neg_tokn_id]
+        positives = labels[sentence_labels == self.pos_token_id]
 
         lprobs = torch.nn.functional.log_softmax(logits, dim=-1)
         negatives[negatives == -100] = 0
@@ -868,12 +868,12 @@ class UnlikelihoodLoss:
         custom_loss = -torch.log(one_minus_probs)*negative_targets
         neg_loss = custom_loss.sum()
         
-        # pos_inputs = {k:t[sentence_labels == self.pos_token_id] for k,t in inputs.items()}
-        # if positives.shape[0] > 0:
-        #     pos_outputs = model(**pos_inputs)
-        #     pos_loss = pos_outputs["loss"]
-        #     del pos_outputs
-        # else:
-        #     pos_loss = 0
-        # del sentence_labels, negatives, positives, labels, pos_inputs
-        return neg_loss
+        pos_inputs = {k:t[sentence_labels == self.pos_token_id] for k,t in inputs.items()}
+        if positives.shape[0] > 0:
+            pos_outputs = model(**pos_inputs)
+            pos_loss = pos_outputs["loss"]
+            del pos_outputs
+        else:
+            pos_loss = 0
+        del sentence_labels, negatives, positives, labels, pos_inputs
+        return pos_loss + neg_loss
