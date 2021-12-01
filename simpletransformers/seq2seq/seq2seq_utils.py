@@ -859,6 +859,7 @@ class UnlikelihoodLoss:
         # negatives = labels
         # negatives[torch.isin(labels, inputs.get("input_ids"))] = -100
         negatives = labels[sentence_labels == self.neg_tokn_id]
+        negatives[torch.isin(labels, inputs.get("input_ids"))] = -100
         positives = labels[sentence_labels == self.pos_token_id]
 
         lprobs = torch.nn.functional.log_softmax(logits, dim=-1)
