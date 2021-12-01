@@ -24,6 +24,7 @@ model_args = Seq2SeqArgs()#Seq2SeqArgs()#T5Args()#S
 model_args.n_gpu = 1
 model_args.optimizer = "AdamW"
 model_args.unlikelihood_loss = True
+model_args.unlikelihood_loss_alpha_rank = 0.5
 # model_args.dynamic_quantize = True
 model_args.eval_batch_size = 2 #1
 model_args.evaluate_during_training = True
@@ -169,6 +170,7 @@ df = df.rename(columns={"input_sentence": "input_text", "rephraser_result": "tar
 df = df[df.rating != 3]
 df.loc[df.rating >= 4, "target_text"] = "1 " + df["target_text"]
 df.loc[df.rating <= 2, "target_text"] = "0 " + df["target_text"]
+# df = df[df.rating <=2]
 
 val_data = read_data("validation.csv")
 

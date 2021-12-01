@@ -844,9 +844,10 @@ class LossDropper(nn.Module):
 
 @dataclass
 class UnlikelihoodLoss:
-    def __init__(self, neg_tokn_id, pos_token_id) -> None:
+    def __init__(self, neg_tokn_id, pos_token_id, unlikelihood_loss_alpha_rank) -> None:
         self.neg_tokn_id = neg_tokn_id
         self.pos_token_id = pos_token_id
+        self.alpha_rank = unlikelihood_loss_alpha_rank
 
     def __call__(self, model, inputs, model_output):
         logits = model_output["logits"] if isinstance(model_output, dict) else model_output[0]
@@ -876,4 +877,4 @@ class UnlikelihoodLoss:
         else:
             pos_loss = 0
         del sentence_labels, negatives, positives, labels, pos_inputs
-        return pos_loss + neg_loss
+        return pos_loss + self.alpha_rank * neg_loss

@@ -343,6 +343,7 @@ class Seq2SeqArgs(ModelArgs):
     loss_dropper: bool = False
     loss_dropper_dropc: float = 0.3
     unlikelihood_loss: bool = False
+    unlikelihood_loss_alpha_rank: float = 0.5
     unlikelihood_loss_neg_token: str = "0"
     unlikelihood_loss_pos_token: str = "1"
 
