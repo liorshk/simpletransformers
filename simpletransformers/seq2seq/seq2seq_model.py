@@ -501,7 +501,7 @@ class Seq2SeqModel:
         if self.args.unlikelihood_loss:
             neg_token_id = self.decoder_tokenizer(self.args.unlikelihood_loss_neg_token)['input_ids'][1]
             pos_token_id = self.decoder_tokenizer(self.args.unlikelihood_loss_pos_token)['input_ids'][1]
-            self.unlikelihood_loss = UnlikelihoodLoss(neg_token_id, pos_token_id, self.args.unlikelihood_loss_alpha_rank, self.EISLNatCriterion)
+            self.unlikelihood_loss = UnlikelihoodLoss(neg_token_id, pos_token_id, self.args.unlikelihood_loss_alpha_rank)
         
         tb_writer = SummaryWriter(log_dir=args.tensorboard_dir)
         train_sampler = RandomSampler(train_dataset)
@@ -760,25 +760,13 @@ class Seq2SeqModel:
                 inputs = self._get_inputs_dict(batch)
 
                 if self.label_smoother is not None and "labels" in inputs:
-                    labels = inputs.get("labels")
+                    labels = inputs.pop("labels")
                 else:
                     labels = None
-                
-                if not self.unlikelihood_loss:
-                    if args.fp16:
-                        with amp.autocast():
-                            outputs = model(**inputs)
-                            if self.EISLNatCriterion:
-                                loss = self.EISLNatCriterion.compute_EISL(outputs, labels)['loss']
-                            else:
-                                if labels is not None:
-                                    loss = self.label_smoother(outputs, labels)
-                                else:
-                                    # We don't use .loss here since the model may return tuples instead of ModelOutput.
-                                    loss = outputs["loss"] if isinstance(outputs, dict) else outputs[0]
-                    else:
-                        outputs = model(**inputs)
 
+                if args.fp16:
+                    with amp.autocast():
+                        outputs = model(**inputs)
                         if self.EISLNatCriterion:
                             loss = self.EISLNatCriterion.compute_EISL(outputs, labels)['loss']
                         else:
@@ -787,21 +775,18 @@ class Seq2SeqModel:
                             else:
                                 # We don't use .loss here since the model may return tuples instead of ModelOutput.
                                 loss = outputs["loss"] if isinstance(outputs, dict) else outputs[0]
+                else:
+                    outputs = model(**inputs)
 
-                if self.unlikelihood_loss:
-                    if args.fp16:
-                        with amp.autocast():
-                            sentence_labels = torch.tensor([label[0] for label in inputs.get("labels")]).to(inputs.get("labels").device)
-                            inputs.get("labels")[:,0] = 0
-                            outputs = model(**inputs)
-                            loss = self.unlikelihood_loss(outputs, inputs, self.label_smoother, sentence_labels)
+                    if self.EISLNatCriterion:
+                        loss = self.EISLNatCriterion.compute_EISL(outputs, labels)['loss']
                     else:
-                        sentence_labels = torch.tensor([label[0] for label in inputs.get("labels")]).to(inputs.get("labels").device)
-                        inputs.get("labels")[:,0] = 0
-                        outputs = model(**inputs)
-                        loss = self.unlikelihood_loss(outputs, inputs, self.label_smoother, sentence_labels)
-                    
-
+                        if labels is not None:
+                            loss = self.label_smoother(outputs, labels)
+                        else:
+                            # We don't use .loss here since the model may return tuples instead of ModelOutput.
+                            loss = outputs["loss"] if isinstance(outputs, dict) else outputs[0]
+                
                 if self.args.loss_dropper:
                     lm_logits = outputs['logits']  # shape bs, seq_len, vocab_size
                     assert lm_logits.shape[-1] == self.model.config.vocab_size
@@ -813,7 +798,10 @@ class Seq2SeqModel:
                     mask = self.loss_dropper(loss)
                     loss *= mask
                     loss = loss.mean()
-                
+
+                if self.unlikelihood_loss:
+                    loss = self.unlikelihood_loss(model, inputs, outputs)
+
                 if args.n_gpu > 1:
                     loss = (
                         loss.mean()

@@ -1,3 +1,6 @@
+
+SYNONYM SUGGESTIONS
+Dismiss
 import logging
 import os
 import pickle
@@ -767,12 +770,12 @@ class EISLNatCriterion:
         # [batch, 1, output_len, target_len]
         cost_nll = cost_nll.unsqueeze(1)
 
-        sum_gram = torch.empty((1),device=decoder_outputs.device)
+        sum_gram = torch.empty((1),device="cuda")
 
         for cnt, ngram in enumerate(ngram_list):
             # out: [batch, 1, output_len, target_len]
             # eye_filter: [1, 1, ngram, ngram]
-            eye_filter = torch.eye(ngram,device=decoder_outputs.device).view([1, 1, ngram, ngram])
+            eye_filter = torch.eye(ngram,device="cuda").view([1, 1, ngram, ngram])
 
             assert ngram <= decoder_outputs.size()[1]
             # term: [batch, 1, output_len - ngram + 1, target_len - ngram + 1]
@@ -844,25 +847,23 @@ class LossDropper(nn.Module):
 
 @dataclass
 class UnlikelihoodLoss:
-    def __init__(self, neg_tokn_id, pos_token_id, unlikelihood_loss_alpha_rank, EISLNatCriterion) -> None:
+    def __init__(self, neg_tokn_id, pos_token_id, unlikelihood_loss_alpha_rank) -> None:
         self.neg_tokn_id = neg_tokn_id
         self.pos_token_id = pos_token_id
         self.alpha_rank = unlikelihood_loss_alpha_rank
-        self.EISLNatCriterion = EISLNatCriterion
 
-    def __call__(self, outputs, inputs, label_smoother, sentence_labels):
-        logits = outputs["logits"] if isinstance(outputs, dict) else outputs[0]
+    def __call__(self, model, inputs, model_output):
+        logits = model_output["logits"] if isinstance(model_output, dict) else model_output[0]
         labels = inputs.get("labels")
-        # sentence_labels = torch.tensor([label[0] for label in labels]).to(labels.device)
+        sentence_labels = torch.tensor([label[0] for label in labels]).to(labels.device)
         # labels[:,0] = 0
         # labels = torch.roll(labels, -1, dims=1)
-        labels_ = torch.clone(labels)
-        labels_[:,0] = -100
+        labels[:,0] = -100
         # negatives = labels
         # negatives[torch.isin(labels, inputs.get("input_ids"))] = -100
-        negatives = labels_[sentence_labels == self.neg_tokn_id]
+        negatives = labels[sentence_labels == self.neg_tokn_id]
         negatives[torch.isin(negatives, inputs.get("input_ids")[sentence_labels == self.neg_tokn_id])] = -100
-        positives = labels_[sentence_labels == self.pos_token_id]
+        positives = labels[sentence_labels == self.pos_token_id]
 
         lprobs = torch.nn.functional.log_softmax(logits, dim=-1)
         negatives[negatives == -100] = 0
@@ -872,21 +873,12 @@ class UnlikelihoodLoss:
         custom_loss = -torch.log(one_minus_probs)*negative_targets
         neg_loss = custom_loss.sum()
         
-        pos_outputs = outputs.copy()
-        pos_outputs['logits'] = pos_outputs['logits'][sentence_labels == self.pos_token_id]
+        pos_inputs = {k:t[sentence_labels == self.pos_token_id] for k,t in inputs.items()}
         if positives.shape[0] > 0:
-            if self.EISLNatCriterion:
-                pos_loss = self.EISLNatCriterion.compute_EISL(pos_outputs, positives)['loss']
-            else:
-                if positives is not None:
-                    pos_loss = label_smoother(pos_outputs, positives)
-                else:
-                    # We don't use .loss here since the model may return tuples instead of ModelOutput.
-                    pos_loss = pos_outputs["loss"] if isinstance(pos_outputs, dict) else pos_outputs[0]
+            pos_outputs = model(**pos_inputs)
+            pos_loss = pos_outputs["loss"]
+            del pos_outputs
         else:
             pos_loss = 0
-        del sentence_labels, negatives, positives, labels_, pos_outputs
-        # print("neg_loss", neg_loss)
-        # print("pos_loss", pos_loss)
-        
+        del sentence_labels, negatives, positives, labels, pos_inputs
         return pos_loss + self.alpha_rank * neg_loss
