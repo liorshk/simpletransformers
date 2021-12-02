@@ -850,16 +850,10 @@ class UnlikelihoodLoss:
         self.alpha_rank = unlikelihood_loss_alpha_rank
         self.EISLNatCriterion = EISLNatCriterion
 
-    def __call__(self, model, inputs, fp16, label_smoother):
-        if fp16:
-            from torch.cuda import amp
-            with amp.autocast():
-                outputs = model(**inputs)
-        else:
-            outputs = model(**inputs)
+    def __call__(self, outputs, inputs, label_smoother, sentence_labels):
         logits = outputs["logits"] if isinstance(outputs, dict) else outputs[0]
         labels = inputs.get("labels")
-        sentence_labels = torch.tensor([label[0] for label in labels]).to(labels.device)
+        # sentence_labels = torch.tensor([label[0] for label in labels]).to(labels.device)
         # labels[:,0] = 0
         # labels = torch.roll(labels, -1, dims=1)
         labels_ = torch.clone(labels)
@@ -878,34 +872,20 @@ class UnlikelihoodLoss:
         custom_loss = -torch.log(one_minus_probs)*negative_targets
         neg_loss = custom_loss.sum()
         
-        pos_inputs = {k:t[sentence_labels == self.pos_token_id] for k,t in inputs.items()}
+        pos_outputs = outputs.copy()
+        pos_outputs['logits'] = pos_outputs['logits'][sentence_labels == self.pos_token_id]
         if positives.shape[0] > 0:
-            if fp16:
-                with amp.autocast():
-                    pos_outputs = model(**pos_inputs)
-                    if self.EISLNatCriterion:
-                        pos_loss = self.EISLNatCriterion.compute_EISL(pos_outputs, labels)['loss']
-                    else:
-                        if positives is not None:
-                            pos_loss = label_smoother(pos_outputs, positives)
-                        else:
-                            # We don't use .loss here since the model may return tuples instead of ModelOutput.
-                            pos_loss = pos_outputs["loss"] if isinstance(pos_outputs, dict) else pos_outputs[0]
+            if self.EISLNatCriterion:
+                pos_loss = self.EISLNatCriterion.compute_EISL(pos_outputs, positives)['loss']
             else:
-                pos_outputs = model(**pos_inputs)
-
-                if self.EISLNatCriterion:
-                    pos_loss = self.EISLNatCriterion.compute_EISL(pos_outputs, positives)['loss']
+                if positives is not None:
+                    pos_loss = label_smoother(pos_outputs, positives)
                 else:
-                    if labels is not None:
-                        pos_loss = label_smoother(pos_outputs, positives)
-                    else:
-                        # We don't use .loss here since the model may return tuples instead of ModelOutput.
-                        pos_loss = pos_outputs["loss"] if isinstance(pos_outputs, dict) else pos_outputs[0]
-            del pos_outputs
+                    # We don't use .loss here since the model may return tuples instead of ModelOutput.
+                    pos_loss = pos_outputs["loss"] if isinstance(pos_outputs, dict) else pos_outputs[0]
         else:
             pos_loss = 0
-        del sentence_labels, negatives, positives, labels_, pos_inputs
+        del sentence_labels, negatives, positives, labels_, pos_outputs
         # print("neg_loss", neg_loss)
         # print("pos_loss", pos_loss)
         
