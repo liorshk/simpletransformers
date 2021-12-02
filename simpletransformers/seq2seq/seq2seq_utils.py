@@ -767,12 +767,12 @@ class EISLNatCriterion:
         # [batch, 1, output_len, target_len]
         cost_nll = cost_nll.unsqueeze(1)
 
-        sum_gram = torch.empty((1),device="cuda")
+        sum_gram = torch.empty((1),device=decoder_outputs.device)
 
         for cnt, ngram in enumerate(ngram_list):
             # out: [batch, 1, output_len, target_len]
             # eye_filter: [1, 1, ngram, ngram]
-            eye_filter = torch.eye(ngram,device="cuda").view([1, 1, ngram, ngram])
+            eye_filter = torch.eye(ngram,device=decoder_outputs.device).view([1, 1, ngram, ngram])
 
             assert ngram <= decoder_outputs.size()[1]
             # term: [batch, 1, output_len - ngram + 1, target_len - ngram + 1]
@@ -850,18 +850,25 @@ class UnlikelihoodLoss:
         self.alpha_rank = unlikelihood_loss_alpha_rank
         self.EISLNatCriterion = EISLNatCriterion
 
-    def __call__(self, model, inputs, model_output, fp16, amp, label_smoother):
-        logits = model_output["logits"] if isinstance(model_output, dict) else model_output[0]
+    def __call__(self, model, inputs, fp16, label_smoother):
+        if fp16:
+            from torch.cuda import amp
+            with amp.autocast():
+                outputs = model(**inputs)
+        else:
+            outputs = model(**inputs)
+        logits = outputs["logits"] if isinstance(outputs, dict) else outputs[0]
         labels = inputs.get("labels")
         sentence_labels = torch.tensor([label[0] for label in labels]).to(labels.device)
         # labels[:,0] = 0
         # labels = torch.roll(labels, -1, dims=1)
-        labels[:,0] = -100
+        labels_ = torch.clone(labels)
+        labels_[:,0] = -100
         # negatives = labels
         # negatives[torch.isin(labels, inputs.get("input_ids"))] = -100
-        negatives = labels[sentence_labels == self.neg_tokn_id]
+        negatives = labels_[sentence_labels == self.neg_tokn_id]
         negatives[torch.isin(negatives, inputs.get("input_ids")[sentence_labels == self.neg_tokn_id])] = -100
-        positives = labels[sentence_labels == self.pos_token_id]
+        positives = labels_[sentence_labels == self.pos_token_id]
 
         lprobs = torch.nn.functional.log_softmax(logits, dim=-1)
         negatives[negatives == -100] = 0
@@ -898,7 +905,7 @@ class UnlikelihoodLoss:
             del pos_outputs
         else:
             pos_loss = 0
-        del sentence_labels, negatives, positives, labels, pos_inputs
+        del sentence_labels, negatives, positives, labels_, pos_inputs
         # print("neg_loss", neg_loss)
         # print("pos_loss", pos_loss)
         

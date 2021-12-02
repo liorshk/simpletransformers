@@ -787,7 +787,10 @@ class Seq2SeqModel:
                             else:
                                 # We don't use .loss here since the model may return tuples instead of ModelOutput.
                                 loss = outputs["loss"] if isinstance(outputs, dict) else outputs[0]
-                
+
+                if self.unlikelihood_loss:
+                    loss = self.unlikelihood_loss(model, inputs, args.fp16, self.label_smoother)
+
                 if self.args.loss_dropper:
                     lm_logits = outputs['logits']  # shape bs, seq_len, vocab_size
                     assert lm_logits.shape[-1] == self.model.config.vocab_size
@@ -799,10 +802,7 @@ class Seq2SeqModel:
                     mask = self.loss_dropper(loss)
                     loss *= mask
                     loss = loss.mean()
-
-                if self.unlikelihood_loss:
-                    loss = self.unlikelihood_loss(model, inputs, outputs, args.fp16, amp, self.label_smoother)
-
+                
                 if args.n_gpu > 1:
                     loss = (
                         loss.mean()
