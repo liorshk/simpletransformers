@@ -760,7 +760,7 @@ class Seq2SeqModel:
                 inputs = self._get_inputs_dict(batch)
 
                 if self.label_smoother is not None and "labels" in inputs:
-                    labels = inputs.pop("labels")
+                    labels = inputs.get("labels")
                 else:
                     labels = None
                 
