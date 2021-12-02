@@ -844,12 +844,13 @@ class LossDropper(nn.Module):
 
 @dataclass
 class UnlikelihoodLoss:
-    def __init__(self, neg_tokn_id, pos_token_id, unlikelihood_loss_alpha_rank) -> None:
+    def __init__(self, neg_tokn_id, pos_token_id, unlikelihood_loss_alpha_rank, EISLNatCriterion) -> None:
         self.neg_tokn_id = neg_tokn_id
         self.pos_token_id = pos_token_id
         self.alpha_rank = unlikelihood_loss_alpha_rank
+        self.EISLNatCriterion = EISLNatCriterion
 
-    def __call__(self, model, inputs, model_output):
+    def __call__(self, model, inputs, model_output, fp16, amp, label_smoother):
         logits = model_output["logits"] if isinstance(model_output, dict) else model_output[0]
         labels = inputs.get("labels")
         sentence_labels = torch.tensor([label[0] for label in labels]).to(labels.device)
@@ -872,10 +873,33 @@ class UnlikelihoodLoss:
         
         pos_inputs = {k:t[sentence_labels == self.pos_token_id] for k,t in inputs.items()}
         if positives.shape[0] > 0:
-            pos_outputs = model(**pos_inputs)
-            pos_loss = pos_outputs["loss"]
+            if fp16:
+                with amp.autocast():
+                    pos_outputs = model(**pos_inputs)
+                    if self.EISLNatCriterion:
+                        pos_loss = self.EISLNatCriterion.compute_EISL(pos_outputs, labels)['loss']
+                    else:
+                        if positives is not None:
+                            pos_loss = label_smoother(pos_outputs, positives)
+                        else:
+                            # We don't use .loss here since the model may return tuples instead of ModelOutput.
+                            pos_loss = pos_outputs["loss"] if isinstance(pos_outputs, dict) else pos_outputs[0]
+            else:
+                pos_outputs = model(**pos_inputs)
+
+                if self.EISLNatCriterion:
+                    pos_loss = self.EISLNatCriterion.compute_EISL(pos_outputs, positives)['loss']
+                else:
+                    if labels is not None:
+                        pos_loss = label_smoother(pos_outputs, positives)
+                    else:
+                        # We don't use .loss here since the model may return tuples instead of ModelOutput.
+                        pos_loss = pos_outputs["loss"] if isinstance(pos_outputs, dict) else pos_outputs[0]
             del pos_outputs
         else:
             pos_loss = 0
         del sentence_labels, negatives, positives, labels, pos_inputs
+        # print("neg_loss", neg_loss)
+        # print("pos_loss", pos_loss)
+        
         return pos_loss + self.alpha_rank * neg_loss

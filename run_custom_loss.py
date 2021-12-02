@@ -24,7 +24,7 @@ model_args = Seq2SeqArgs()#Seq2SeqArgs()#T5Args()#S
 model_args.n_gpu = 1
 model_args.optimizer = "AdamW"
 model_args.unlikelihood_loss = True
-model_args.unlikelihood_loss_alpha_rank = 0.5
+model_args.unlikelihood_loss_alpha_rank = 1
 # model_args.dynamic_quantize = True
 model_args.eval_batch_size = 2 #1
 model_args.evaluate_during_training = True
@@ -52,14 +52,19 @@ model_args.use_multiprocessing = False
 model_args.use_multiprocessed_decoding = False
 model_args.warmup_steps = 100
 
-# model_args.wandb_project = "rephraser_training_simpletransformers"
+model_args.EISLNatCriterion = True
+model_args.eisl_ngram_factor = 0.2
+model_args.ce_factor = 0.8
+model_args.eisl_ngram = '2,3,4'
 
-model_args.do_sample = False
+model_args.do_sample = True
 model_args.num_beams = 10
-model_args.num_beam_groups = 10
-model_args.diversity_penalty = 0.24
+model_args.top_k = 7
+model_args.top_p = 0.99
+model_args.temperature = 2.7
+model_args.length_penalty = 0.5
 model_args.num_return_sequences = 10
-model_args.repetition_penalty = 1.4
+model_args.repetition_penalty = 2.2
 model_args.max_length = 60
 
 from sklearn.metrics import pairwise_distances
@@ -170,12 +175,14 @@ df = df.rename(columns={"input_sentence": "input_text", "rephraser_result": "tar
 df = df[df.rating != 3]
 df.loc[df.rating >= 4, "target_text"] = "1 " + df["target_text"]
 df.loc[df.rating <= 2, "target_text"] = "0 " + df["target_text"]
-# df = df[df.rating <=2]
+# df = df.sample(4)
+# df = df[df.rating <=2].sample(4)
+# print(df)
 
-val_data = read_data("validation.csv")
+# val_data = read_data("validation.csv")
 
 model = Seq2SeqModel(encoder_decoder_type="bart", encoder_decoder_name="facebook/bart-base", args=model_args, use_cuda=False)
-model.train_model(df.dropna(subset=["input_text","target_text"]), eval_data=val_data.dropna(),gleu_score_max=gleu_score_max, gleu_score_mean=gleu_score_mean,diversity_score_mean=diversity_score_mean)
+model.train_model(df.dropna(subset=["input_text","target_text"]))
 
 
 
