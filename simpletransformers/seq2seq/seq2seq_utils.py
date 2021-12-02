@@ -1,6 +1,3 @@
-
-SYNONYM SUGGESTIONS
-Dismiss
 import logging
 import os
 import pickle
@@ -770,12 +767,12 @@ class EISLNatCriterion:
         # [batch, 1, output_len, target_len]
         cost_nll = cost_nll.unsqueeze(1)
 
-        sum_gram = torch.empty((1),device="cuda")
+        sum_gram = torch.empty((1),device=decoder_outputs.device)
 
         for cnt, ngram in enumerate(ngram_list):
             # out: [batch, 1, output_len, target_len]
             # eye_filter: [1, 1, ngram, ngram]
-            eye_filter = torch.eye(ngram,device="cuda").view([1, 1, ngram, ngram])
+            eye_filter = torch.eye(ngram,device=decoder_outputs.device).view([1, 1, ngram, ngram])
 
             assert ngram <= decoder_outputs.size()[1]
             # term: [batch, 1, output_len - ngram + 1, target_len - ngram + 1]
@@ -852,8 +849,8 @@ class UnlikelihoodLoss:
         self.pos_token_id = pos_token_id
         self.alpha_rank = unlikelihood_loss_alpha_rank
 
-    def __call__(self, model, inputs, model_output):
-        logits = model_output["logits"] if isinstance(model_output, dict) else model_output[0]
+    def __call__(self, outputs, inputs, label_smoother, sentence_labels):
+        logits = outputs["logits"] if isinstance(outputs, dict) else outputs[0]
         labels = inputs.get("labels")
         sentence_labels = torch.tensor([label[0] for label in labels]).to(labels.device)
         # labels[:,0] = 0
