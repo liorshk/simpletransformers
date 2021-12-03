@@ -849,7 +849,7 @@ class UnlikelihoodLoss:
         self.pos_token_id = pos_token_id
         self.alpha_rank = unlikelihood_loss_alpha_rank
 
-    def __call__(self, outputs, inputs, label_smoother, sentence_labels):
+    def __call__(self, outputs, model, inputs):
         logits = outputs["logits"] if isinstance(outputs, dict) else outputs[0]
         labels = inputs.get("labels")
         sentence_labels = torch.tensor([label[0] for label in labels]).to(labels.device)
