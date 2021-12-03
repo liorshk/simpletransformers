@@ -789,17 +789,8 @@ class Seq2SeqModel:
                                 loss = outputs["loss"] if isinstance(outputs, dict) else outputs[0]
 
                 if self.unlikelihood_loss:
-                    if args.fp16:
-                        with amp.autocast():
-                            sentence_labels = torch.tensor([label[0] for label in inputs.get("labels")]).to(inputs.get("labels").device)
-                            inputs.get("labels")[:,0] = 0
-                            outputs = model(**inputs)
-                            loss = self.unlikelihood_loss(outputs, inputs, self.label_smoother, sentence_labels)
-                    else:
-                        sentence_labels = torch.tensor([label[0] for label in inputs.get("labels")]).to(inputs.get("labels").device)
-                        inputs.get("labels")[:,0] = 0
-                        outputs = model(**inputs)
-                        loss = self.unlikelihood_loss(outputs, inputs, self.label_smoother, sentence_labels)
+                    outputs = model(**inputs)
+                    loss = self.unlikelihood_loss(outputs, model, inputs)
                     
 
                 if self.args.loss_dropper:
