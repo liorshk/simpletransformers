@@ -499,6 +499,7 @@ class Seq2SeqModel:
         
         self.unlikelihood_loss = None
         if self.args.unlikelihood_loss:
+            print("Warning - Using unlikelihood_loss will not use any other loss")
             neg_token_id = self.decoder_tokenizer(self.args.unlikelihood_loss_neg_token)['input_ids'][1]
             pos_token_id = self.decoder_tokenizer(self.args.unlikelihood_loss_pos_token)['input_ids'][1]
             self.unlikelihood_loss = UnlikelihoodLoss(neg_token_id, pos_token_id, self.args.unlikelihood_loss_alpha_rank)

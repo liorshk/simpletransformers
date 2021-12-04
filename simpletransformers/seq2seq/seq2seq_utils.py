@@ -23,7 +23,7 @@ from transformers import (
     DPRContextEncoder,
     DPRContextEncoderTokenizerFast,
 )
-
+import wandb
 
 logger = logging.getLogger(__name__)
 
@@ -722,7 +722,13 @@ class EISLNatCriterion:
         ngram_loss = self.batch_log_EISL_cnn(log_probs, targets, ngram_list=ngram_list)
 
         eisl_loss = ngram_loss * self.ngram_factor + ce_loss['loss'] * self.ce_factor
-
+        wandb.log(
+            {
+                "EISL loss (ngram * {:.2f} + CE * {:.2f})".format(self.ngram_factor,self.ce_factor): eisl_loss,
+                "ngram loss": ngram_loss,
+                "CE loss": ce_loss['loss'],
+            }
+        )
         return {"name": 'EISL-loss', "loss": eisl_loss,
                 "ngram_loss": ngram_loss,
                 "ce_loss": ce_loss['loss'],
@@ -852,21 +858,29 @@ class UnlikelihoodLoss:
     def __call__(self, outputs, model, inputs):
         logits = outputs["logits"] if isinstance(outputs, dict) else outputs[0]
         labels = inputs.get("labels")
+        # The first token of the sentence represents if it's positive or negative
         sentence_labels = torch.tensor([label[0] for label in labels]).to(labels.device)
-        # labels[:,0] = 0
-        # labels = torch.roll(labels, -1, dims=1)
-        labels[:,0] = -100
-        # negatives = labels
-        # negatives[torch.isin(labels, inputs.get("input_ids"))] = -100
-        negatives = labels[sentence_labels == self.neg_tokn_id]
-        negatives[torch.isin(negatives, inputs.get("input_ids")[sentence_labels == self.neg_tokn_id])] = -100
+        
+        # Set the start token in the label to the model's start token 
+        labels[:,0] = model.config.decoder_start_token_id#-100
+
+        # Get the negatives
+        negatives_labels = labels[sentence_labels == self.neg_tokn_id]
+        negatives_input = inputs.get("input_ids")[sentence_labels == self.neg_tokn_id]
+        # Set all the tokens that exist in the input as -100 (ignore from loss calculations)
+        negatives_labels[torch.isin(negatives_labels, negatives_input)] = -100
         positives = labels[sentence_labels == self.pos_token_id]
 
         lprobs = torch.nn.functional.log_softmax(logits, dim=-1)
-        negatives[negatives == -100] = 0
-        negative_targets = torch.zeros_like(lprobs).scatter_(2, torch.unsqueeze(negatives, 2), 1)
+        lprobs_negatives = lprobs[sentence_labels == self.neg_tokn_id]
+        negatives_labels[negatives_labels == -100] = 0
+
+        # Create a tensor with the same dim as lprobs
+        negative_targets = torch.zeros_like(lprobs_negatives)
+        # negative_labels contains the indices of the tokens, now we put the values of each indice in the correct position 
+        negative_targets = negative_targets.scatter_(2, torch.unsqueeze(negatives_labels, 2), 1)
         negative_targets[:, :, 0] = 0
-        one_minus_probs = torch.clamp((1.0 - lprobs.exp()), min=1e-5)
+        one_minus_probs = torch.clamp((1.0 - lprobs_negatives.exp()), min=1e-5)
         custom_loss = -torch.log(one_minus_probs)*negative_targets
         neg_loss = custom_loss.sum()
         
@@ -877,5 +891,12 @@ class UnlikelihoodLoss:
             del pos_outputs
         else:
             pos_loss = 0
-        del sentence_labels, negatives, positives, labels, pos_inputs
+        del sentence_labels, negatives_labels, positives, labels, pos_inputs
+        wandb.log(
+            {
+                "Negative Unlikelihood Loss": neg_loss,
+                "Positive Loss": pos_loss,
+            }
+        )
+
         return pos_loss + self.alpha_rank * neg_loss
