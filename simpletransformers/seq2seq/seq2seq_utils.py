@@ -862,7 +862,7 @@ class UnlikelihoodLoss:
         sentence_labels = torch.tensor([label[0] for label in labels]).to(labels.device)
         
         # Set the start token in the label to the model's start token 
-        labels[:,0] = model.config.decoder_start_token_id#-100
+        labels[:,0] = -100 #model.config.decoder_start_token_id
 
         # Get the negatives
         negatives_labels = labels[sentence_labels == self.neg_tokn_id]
