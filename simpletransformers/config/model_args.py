@@ -336,6 +336,7 @@ class Seq2SeqArgs(ModelArgs):
     top_k: float = None
     top_p: float = None
     no_repeat_ngram_size: int = None
+    encoder_no_repeat_ngram_size: int = None
     use_multiprocessed_decoding: bool = False
     eisl_ngram: str = '1,2'
     eisl_ce_factor: float = 0.5
