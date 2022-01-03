@@ -1388,6 +1388,7 @@ class Seq2SeqModel:
                     top_k=self.args.top_k,
                     top_p=self.args.top_p,
                     no_repeat_ngram_size=self.args.no_repeat_ngram_size,
+                    encoder_no_repeat_ngram_size=self.args.encoder_no_repeat_ngram_size,
                     temperature=self.args.temperature,
                     num_return_sequences=self.args.num_return_sequences,
                 )
@@ -1409,6 +1410,7 @@ class Seq2SeqModel:
                     top_k=self.args.top_k,
                     top_p=self.args.top_p,
                     no_repeat_ngram_size=self.args.no_repeat_ngram_size,
+                    encoder_no_repeat_ngram_size=self.args.encoder_no_repeat_ngram_size,
                     temperature=self.args.temperature,
                     num_return_sequences=self.args.num_return_sequences,
                 )
@@ -1431,6 +1433,7 @@ class Seq2SeqModel:
                     top_k=self.args.top_k,
                     top_p=self.args.top_p,
                     no_repeat_ngram_size=self.args.no_repeat_ngram_size,
+                    encoder_no_repeat_ngram_size=self.args.encoder_no_repeat_ngram_size,
                     temperature=self.args.temperature,
                     num_return_sequences=self.args.num_return_sequences,
                 )
