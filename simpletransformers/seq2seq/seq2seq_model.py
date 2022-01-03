@@ -1291,7 +1291,7 @@ class Seq2SeqModel:
         """  # noqa: ignore flake8"
 
         self._move_model_to_device()
-
+        print("encoder_no_repeat_ngram_size", self.args.encoder_no_repeat_ngram_size)
         all_outputs = []
         all_retrieved = []
         all_doc_scores = []
